@@ -1,0 +1,161 @@
+#!/bin/bash
+function pause(){
+   read -p “$*”
+}
+echo "Making dirs for steam installation in \"~/Steam\"."
+echo "WARNING!!!"
+echo "This will delete existing folder \"~/Steam\" and \"~/.local/share/Steam\"."
+pause 'Press eny key to continue.'
+echo "Create a new temp dir."
+TEMPSTEAMDIR=$(mktemp -d /tmp/steam.XXXXX)
+#
+STEAMPATH=$HOME/Steam
+STEAMLOCAL=$HOME/.local/share/Steam
+rm -Rf $STEAMPATH
+rm -Rf $STEAMLOCAL
+mkdir -p $STEAMPATH
+ln -s $STEAMPATH $STEAMLOCAL
+#
+echo "Create new directories to store the downloaded ubuntu libs in."
+mkdir -p $STEAMLOCAL/steam-lib/i386/lib/ 
+mkdir -p $STEAMLOCAL/steam-lib/amd64/lib/ 
+echo "Copy the unpacked libraries to the new directory."
+cp -pr $TEMPSTEAMDIR/libc6_2.15-0ubuntu10_i386/lib/* $STEAMLOCAL/steam-lib/i386/lib/ 
+cp -pr $TEMPSTEAMDIR/libc6_2.15-0ubuntu10_amd64/lib/* $STEAMLOCAL/steam-lib/amd64/lib/ 
+echo "Install flash player to steam."
+mkdir -p $STEAMLOCALubuntu12_32/plugins 
+wget -qO- https://get.adobe.com/de/flashplayer/completion/?installer=Flash_Player_11.2_for_other_Linux_%28.tar.gz%29_32-bit|awk -F\' '/location.href/{print $2}'|sed s/http:/https:/|wget -i- -qO-|tar zxvC $STEAMLOCAL/ubuntu12_32/plugins libflashplayer.so
+#
+echo "Remove the temp dir."
+rm -Rf $TEMPSTEAMDIR 
+echo "Installation is now complete."
+echo "Creating start script to Steam installation folder for usage of right libraries."
+cd
+#rm $STEAMPATH/steam-wrapper.sh
+touch $STEAMPATH/steam-wrapper.sh
+echo "#!/bin/bash" >> ~/Steam/steam-wrapper.sh
+echo "export LD_LIBRARY_PATH=~/.local/share/Steam/steam-lib/i386/lib/i386-linux-gnu/:~/.local/share/Steam/steam-lib/amd64/lib/x86_64-linux-gnu/" >> $STEAMPATH/steam-wrapper.sh
+echo "/usr/bin/steam \$1" >> $STEAMPATH/steam-wrapper.sh
+chmod +x $STEAMPATH/steam-wrapper.sh
+#
+echo "Creating steam.desktop file to start steam from your menu."
+rm $HOME/.local/share/applications/steam.desktop
+touch $HOME/.local/share/applications/steam.desktop
+chmod +x $HOME/.local/share/applications/steam.desktop
+echo "[Desktop Entry]
+Name=Steam (script)
+Comment=Application for managing and playing games on Steam
+Exec=$STEAMPATH/steam-wrapper.sh
+#/usr/bin/steam %U
+Icon=steam
+Terminal=false
+Type=Application
+Categories=Network;FileTransfer;Game;
+MimeType=x-scheme-handler/steam;
+Actions=Store;Community;Library;Servers;Screenshots;News;Settings;BigPicture;Friends;
+
+[Desktop Action Store]
+Name=Store
+Name[de]=Shop
+Name[es]=Tienda
+Name[fr]=Magasin
+Name[it]=Negozio
+Name[pt]=Loja
+Name[ru]=Магазин
+Name[zh_CN]=商店
+Name[zh_TW]=商店
+Exec=$STEAMPATH/steam-wrapper.sh steam://store
+
+[Desktop Action Community]
+Name=Community
+Name[es]=Comunidad
+Name[fr]=Communauté
+Name[it]=Comunità
+Name[pt]=Comunidade
+Name[ru]=Сообщество
+Name[zh_CN]=社区
+Name[zh_TW]=社群
+Exec=steam steam://url/SteamIDControlPage
+
+[Desktop Action Library]
+Name=Library
+Name[de]=Bibliothek
+Name[es]=Biblioteca
+Name[fr]=Bibliothèque
+Name[it]=Libreria
+Name[pt]=Biblioteca
+Name[ru]=Библиотека
+Name[zh_CN]=库
+Name[zh_TW]=遊戲庫
+Exec=steam steam://open/games
+
+[Desktop Action Servers]
+Name=Servers
+Name[de]=Server
+Name[es]=Servidores
+Name[fr]=Serveurs
+Name[it]=Server
+Name[pt]=Servidores
+Name[ru]=Серверы
+Name[zh_CN]=服务器
+Name[zh_TW]=伺服器
+Exec=steam steam://open/servers
+
+[Desktop Action Screenshots]
+Name=Screenshots
+Name[es]=Capturas
+Name[fr]=Captures d'écran
+Name[it]=Screenshot
+Name[ru]=Скриншоты
+Name[zh_CN]=截图
+Name[zh_TW]=螢幕擷圖
+Exec=steam steam://open/screenshots
+
+[Desktop Action News]
+Name=News
+Name[de]=Neuigkeiten
+Name[es]=Noticias
+Name[fr]=Actualités
+Name[it]=Notizie
+Name[pt]=Notícias
+Name[ru]=Новости
+Name[zh_CN]=新闻
+Name[zh_TW]=新聞
+Exec=steam steam://open/news
+
+[Desktop Action Settings]
+Name=Settings
+Name[de]=Einstellungen
+Name[es]=Parámetros
+Name[fr]=Paramètres
+Name[it]=Impostazioni
+Name[pt]=Configurações
+Name[ru]=Настройки
+Name[zh_CN]=设置
+Name[zh_TW]=設定
+Exec=steam steam://open/settings
+
+[Desktop Action BigPicture]
+Name=Big Picture
+Exec=steam steam://open/bigpicture
+
+[Desktop Action Friends]
+Name=Friends
+Name[de]=Freunde
+Name[es]=Amigos
+Name[fr]=Amis
+Name[it]=Amici
+Name[pt]=Amigos
+Name[ru]=Друзья
+Name[zh_CN]=好友
+Name[zh_TW]=好友
+Exec=steam steam://open/friends">>$HOME/.local/share/applications/steam.desktop
+chmod +x $HOME/.local/share/applications/steam.desktop
+#
+echo "Attention: Maybe steam starts first time with confusing message two times."
+echo "Now starting steam."
+pause 'Press any key to continue …'
+$STEAMPATH/steam-wrapper.sh
+
+
+

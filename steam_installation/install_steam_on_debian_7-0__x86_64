@@ -1,0 +1,244 @@
+#!/bin/bash
+# init
+function pause(){
+   read -p “$*”
+}
+#
+# This script is made quick and dirty. Be carefully. No warranty of anything.
+# Origin steps from http://www.sarplot.org/howto/45/Steam_on_64bit_Debian_Wheezy_70/
+# Modified by salzkraftwerk
+#
+echo "---------------------------------"
+echo "Don't trust this script, read it!"
+echo "---------------------------------"
+echo " "
+echo "This script is optimized for NVIDIA graphiccards with installed NVIDIA proprietary drivers."
+echo "If you haven't installed the NVIDIA proprietary drivers, see in this script."
+# I use nvidia driver version 304 for my nvidia gtx 285.
+#sudo apt-get install --yes nvidia-kernel-common nvidia-kernel-dkms nvidia-settings nvidia-vdpau-driver nvidia-xconfig
+#sudo nvidia-xconfig
+#sudo restart
+echo " "
+echo "Now we must do some things as sudo."
+echo "You need installed package \"sudo\" and in the sudos users list."
+echo "#adduser USERNAME sudo"
+echo " "
+sudo echo "I'm sudo."
+echo " "
+pause 'Press any key to continue …'
+echo "Add i386 architecture to your system."
+sudo dpkg --add-architecture i386
+echo "Done."
+echo "Update and install updates on your system."
+sudo apt-get update
+sudo apt-get upgrade --yes
+echo "Installations done."
+#
+echo "The needed and often not found libGL.so.1 will be in \"libgl1-nvidia-glx:i386\" package. Installation."
+sudo at-get install --yes libgl1-nvidia-glx:i386
+echo "Install all listed dependencies for the steam package."
+DEPENDS="wget xterm zenity libgtk2.0-0:i386 libcurl3-gnutls:i386 libgl1-mesa-dri:i386 libgl1-mesa-glx:i386 libogg0:i386 libpixman-1-0:i386 libsdl1.2debian:i386 libtheora0:i386 libudev0:i386 libvorbis0a:i386 libvorbisenc2:i386 libvorbisfile3:i386 libasound2:i386 libcairo2:i386 libcups2:i386 libdbus-1-3:i386 libfontconfig1:i386 libfreetype6:i386 libgcc1:i386 libgcrypt11:i386 libgdk-pixbuf2.0-0:i386 libglib2.0-0:i386 libnspr4:i386 libnss3:i386 libopenal1:i386 libpango1.0-0:i386 libpng12-0:i386 libpulse0:i386 libstdc++6:i386 libx11-6:i386 libxext6:i386 libxfixes3:i386 libxi6:i386 libxinerama1:i386 libxrandr2:i386 libxrender1:i386"
+sudo apt-get install --yes multiarch-support $DEPENDS
+#
+echo "Create tempdirectory for working in."
+TEMPSTEAMDIR=$(mktemp -d /tmp/steam.XXXXX)
+echo "Download the latest steam deb package."
+sudo wget -NP $TEMPSTEAMDIR http://repo.steampowered.com/steam/archive/precise/steam_latest.deb
+echo "Unpack the steam package to the tmp folder."
+sudo dpkg -x $TEMPSTEAMDIR/steam_latest.deb $TEMPSTEAMDIR/steam
+echo "Unpack the control file so we can modify the dependency packages and create our own steam package."
+sudo dpkg -e $TEMPSTEAMDIR/steam_latest.deb $TEMPSTEAMDIR/steam/DEBIAN 
+echo "Change some version for the dependencies in the control file."
+sudo sed -i 's/multiarch-support ([^()]*)/multiarch-support/g' $TEMPSTEAMDIR/steam/DEBIAN/control 
+sudo sed -i 's/libc6 ([^()]*)/libc6/g' $TEMPSTEAMDIR/steam/DEBIAN/control 
+sudo sed -i 's/libpulse0 ([^()]*)/libpulse0/g' $TEMPSTEAMDIR/steam/DEBIAN/control 
+echo "Create the new steam deb package"
+sudo dpkg -b $TEMPSTEAMDIR/steam/ 
+#
+echo "Steam has a couple of dependancies not listed for the deb package, these packages needs to be downloaded and installed from ubuntu repository."
+sudo wget -NP $TEMPSTEAMDIR http://archive.ubuntu.com/ubuntu/pool/main/x/x-kit/python-xkit_0.4.2.3build1_all.deb 
+sudo wget -NP $TEMPSTEAMDIR http://archive.ubuntu.com/ubuntu/pool/main/j/jockey/jockey-common_0.9.7-0ubuntu7_all.deb 
+sudo dpkg -i $TEMPSTEAMDIR/python-xkit_0.4.2.3build1_all.deb 
+sudo dpkg -i $TEMPSTEAMDIR/jockey-common_0.9.7-0ubuntu7_all.deb 
+#
+echo "Install the steam package we created earlier."
+sudo dpkg -i $TEMPSTEAMDIR/steam.deb
+#
+echo "Remove the steam apt source added by the deb package."
+sudo rm /etc/apt/sources.list.d/steam.list
+echo "Remove the temp dir."
+sudo rm -rf $TEMPSTEAMDIR 
+echo "Continue as home user."
+#exit
+#
+#whoami
+#echo "If \"whoami\" output displays not your actually used home user, abort this script with \"CTRL+C\"!"
+#echo "If your username is displayed:"
+#pause 'Press any key to continue …'
+echo " "
+echo "I'm not sudo any more."
+pause 'Press any key to continue …'
+#
+echo "Create a new temp dir."
+TEMPSTEAMDIR=$(mktemp -d /tmp/steam.XXXXX)
+echo "Download libc6 packages from ubuntu repo."
+wget -NP $TEMPSTEAMDIR http://archive.ubuntu.com/ubuntu/pool/main/e/eglibc/libc6_2.15-0ubuntu10_i386.deb 
+wget -NP $TEMPSTEAMDIR http://archive.ubuntu.com/ubuntu/pool/main/e/eglibc/libc6_2.15-0ubuntu10_amd64.deb
+echo "Unpack the ubuntu packages to the tmp directory."
+dpkg -x $TEMPSTEAMDIR/libc6_2.15-0ubuntu10_i386.deb $TEMPSTEAMDIR/libc6_2.15-0ubuntu10_i386/ 
+dpkg -x $TEMPSTEAMDIR/libc6_2.15-0ubuntu10_amd64.deb $TEMPSTEAMDIR/libc6_2.15-0ubuntu10_amd64/ 
+#
+echo "Making dirs for steam installation in \"~/Steam\"."
+STEAMPATH=$HOME/Steam
+rm -Rf $STEAMPATH
+rm ~/.local/share/Steam
+mkdir -p $STEAMPATH
+ln -s $STEAMPATH ~/.local/share/Steam
+echo "Create new directories to store the downloaded ubuntu libs in."
+mkdir -p ~/.local/share/Steam/steam-lib/i386/lib/ 
+mkdir -p ~/.local/share/Steam/steam-lib/amd64/lib/ 
+echo "Copy the unpacked libraries to the new directory."
+cp -pr $TEMPSTEAMDIR/libc6_2.15-0ubuntu10_i386/lib/* ~/.local/share/Steam/steam-lib/i386/lib/ 
+cp -pr $TEMPSTEAMDIR/libc6_2.15-0ubuntu10_amd64/lib/* ~/.local/share/Steam/steam-lib/amd64/lib/ 
+echo "Install flash player to steam."
+mkdir -p ~/.local/share/Steam/ubuntu12_32/plugins 
+wget -qO- https://get.adobe.com/de/flashplayer/completion/?installer=Flash_Player_11.2_for_other_Linux_%28.tar.gz%29_32-bit|awk -F\' '/location.href/{print $2}'|sed s/http:/https:/|wget -i- -qO-|tar zxvC ~/.local/share/Steam/ubuntu12_32/plugins libflashplayer.so
+#
+echo "Remove the temp dir."
+rm -Rf $TEMPSTEAMDIR 
+echo "Installation is now complete."
+echo "Creating start script to Steam installation folder for usage of right libraries."
+cd
+rm $STEAMPATH/steam-wrapper.sh
+touch $STEAMPATH/steam-wrapper.sh
+echo "#!/bin/bash" >> ~/Steam/steam-wrapper.sh
+echo "export LD_LIBRARY_PATH=~/.local/share/Steam/steam-lib/i386/lib/i386-linux-gnu/:~/.local/share/Steam/steam-lib/amd64/lib/x86_64-linux-gnu/" >> $STEAMPATH/steam-wrapper.sh
+echo "/usr/bin/steam \$1" >> $STEAMPATH/steam-wrapper.sh
+chmod +x $STEAMPATH/steam-wrapper.sh
+#
+#
+#
+echo "Creating steam.desktop file to start steam from your menu."
+rm ~/.local/share/applications/steam.desktop
+touch ~/.local/share/applications/steam.desktop
+chmod +x ~/.local/share/applications/steam.desktop
+echo "[Desktop Entry]
+Name=Steam (script)
+Comment=Application for managing and playing games on Steam
+Exec=$STEAMPATH/steam-wrapper.sh
+#/usr/bin/steam %U
+Icon=steam
+Terminal=false
+Type=Application
+Categories=Network;FileTransfer;Game;
+MimeType=x-scheme-handler/steam;
+Actions=Store;Community;Library;Servers;Screenshots;News;Settings;BigPicture;Friends;
+
+[Desktop Action Store]
+Name=Store
+Name[de]=Shop
+Name[es]=Tienda
+Name[fr]=Magasin
+Name[it]=Negozio
+Name[pt]=Loja
+Name[ru]=Магазин
+Name[zh_CN]=商店
+Name[zh_TW]=商店
+Exec=$STEAMPATH/steam-wrapper.sh steam://store
+
+[Desktop Action Community]
+Name=Community
+Name[es]=Comunidad
+Name[fr]=Communauté
+Name[it]=Comunità
+Name[pt]=Comunidade
+Name[ru]=Сообщество
+Name[zh_CN]=社区
+Name[zh_TW]=社群
+Exec=steam steam://url/SteamIDControlPage
+
+[Desktop Action Library]
+Name=Library
+Name[de]=Bibliothek
+Name[es]=Biblioteca
+Name[fr]=Bibliothèque
+Name[it]=Libreria
+Name[pt]=Biblioteca
+Name[ru]=Библиотека
+Name[zh_CN]=库
+Name[zh_TW]=遊戲庫
+Exec=steam steam://open/games
+
+[Desktop Action Servers]
+Name=Servers
+Name[de]=Server
+Name[es]=Servidores
+Name[fr]=Serveurs
+Name[it]=Server
+Name[pt]=Servidores
+Name[ru]=Серверы
+Name[zh_CN]=服务器
+Name[zh_TW]=伺服器
+Exec=steam steam://open/servers
+
+[Desktop Action Screenshots]
+Name=Screenshots
+Name[es]=Capturas
+Name[fr]=Captures d'écran
+Name[it]=Screenshot
+Name[ru]=Скриншоты
+Name[zh_CN]=截图
+Name[zh_TW]=螢幕擷圖
+Exec=steam steam://open/screenshots
+
+[Desktop Action News]
+Name=News
+Name[de]=Neuigkeiten
+Name[es]=Noticias
+Name[fr]=Actualités
+Name[it]=Notizie
+Name[pt]=Notícias
+Name[ru]=Новости
+Name[zh_CN]=新闻
+Name[zh_TW]=新聞
+Exec=steam steam://open/news
+
+[Desktop Action Settings]
+Name=Settings
+Name[de]=Einstellungen
+Name[es]=Parámetros
+Name[fr]=Paramètres
+Name[it]=Impostazioni
+Name[pt]=Configurações
+Name[ru]=Настройки
+Name[zh_CN]=设置
+Name[zh_TW]=設定
+Exec=steam steam://open/settings
+
+[Desktop Action BigPicture]
+Name=Big Picture
+Exec=steam steam://open/bigpicture
+
+[Desktop Action Friends]
+Name=Friends
+Name[de]=Freunde
+Name[es]=Amigos
+Name[fr]=Amis
+Name[it]=Amici
+Name[pt]=Amigos
+Name[ru]=Друзья
+Name[zh_CN]=好友
+Name[zh_TW]=好友
+Exec=steam steam://open/friends">>~/.local/share/applications/steam.desktop
+chmod +x ~/.local/share/applications/steam.desktop
+#
+#
+#
+#
+echo "Attention: Maybe steam starts first time with confusing message two times."
+echo "Now starting steam."
+pause 'Press any key to continue …'
+$STEAMPATH/steam-wrapper.sh
+
+
+
